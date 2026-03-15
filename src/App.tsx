@@ -19,7 +19,7 @@ import {
   Trash2
 } from "lucide-react";
 import { ZephyraLogo } from "./components/ZephyraLogo";
-import { ai, CHAT_MODEL, Message as MessageType } from "./lib/gemini";
+import { getAI, CHAT_MODEL, Message as MessageType } from "./lib/gemini";
 import { Message } from "./components/Message";
 import { ChatInput, FileData } from "./components/ChatInput";
 import { SettingsModal, AppSettings, personalities } from "./components/SettingsModal";
@@ -229,7 +229,8 @@ export default function App() {
       // Combine history and current message
       const contents = [...history, { role: "user", parts: currentParts }];
 
-      const response = await ai.models.generateContent({
+      const aiInstance = getAI(settings.customApiKey);
+      const response = await aiInstance.models.generateContent({
         model: CHAT_MODEL,
         contents: contents,
         config: {
@@ -252,12 +253,23 @@ export default function App() {
         }
         return c;
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error("Chat error:", error);
+      
+      let errorText = "I encountered an error while processing your request. Please try again.";
+      
+      if (error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key not valid")) {
+        errorText = "Invalid API Key. Please check your Gemini API Key in Settings.";
+      } else if (error?.message?.includes("quota") || error?.message?.includes("429")) {
+        errorText = "API Quota exceeded. Please try again later or use your own API Key in Settings.";
+      } else if (error?.message?.includes("safety") || error?.message?.includes("SAFETY")) {
+        errorText = "The message was blocked by safety filters. Please try a different prompt.";
+      }
+
       const errorMessage: MessageType = {
         id: (Date.now() + 1).toString(),
         role: "model",
-        content: "I encountered an error while processing your request. Please try again.",
+        content: errorText,
         timestamp: Date.now(),
       };
       setConversations(prev => prev.map(c => {

@@ -1,5 +1,5 @@
 import React from "react";
-import { X, User, Brain, Palette, Save, History, Settings } from "lucide-react";
+import { X, User, Brain, Palette, Save, History, Settings, Key } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "../lib/utils";
 
@@ -8,6 +8,7 @@ export interface AppSettings {
   personality: string;
   accentColor: string;
   enableMemory: boolean;
+  customApiKey?: string;
 }
 
 interface SettingsModalProps {
@@ -92,6 +93,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   placeholder="Your Name"
                   className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
                 />
+              </div>
+
+              {/* API Key */}
+              <div className="space-y-4">
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
+                  <Key size={14} /> Gemini API Key (Optional)
+                </label>
+                <input
+                  type="password"
+                  value={tempSettings.customApiKey || ""}
+                  onChange={(e) => setTempSettings({ ...tempSettings, customApiKey: e.target.value })}
+                  placeholder="Enter your API Key if the default fails"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                />
+                <p className="text-[10px] text-zinc-500 italic">
+                  Leave empty to use the system default key.
+                </p>
               </div>
 
               {/* AI Personality */}
