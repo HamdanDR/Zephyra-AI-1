@@ -43,15 +43,22 @@ const DEFAULT_SETTINGS: AppSettings = {
 export default function App() {
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     try {
-      const saved = localStorage.getItem("zephyra_conversations");
-      return saved ? JSON.parse(saved) : [];
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const saved = localStorage.getItem("zephyra_conversations");
+        return saved ? JSON.parse(saved) : [];
+      }
     } catch (e) {
       console.error("Failed to parse conversations:", e);
-      return [];
     }
+    return [];
   });
   const [activeId, setActiveId] = useState<string | null>(() => {
-    return localStorage.getItem("zephyra_active_id") || null;
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return localStorage.getItem("zephyra_active_id") || null;
+      }
+    } catch (e) {}
+    return null;
   });
   const [isLoading, setIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -59,10 +66,12 @@ export default function App() {
   const [previewData, setPreviewData] = useState<{ code: string, language: string } | null>(null);
   const [settings, setSettings] = useState<AppSettings>(() => {
     try {
-      const saved = localStorage.getItem("zephyra_settings");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        return { ...DEFAULT_SETTINGS, ...parsed };
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const saved = localStorage.getItem("zephyra_settings");
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          return { ...DEFAULT_SETTINGS, ...parsed };
+        }
       }
     } catch (e) {
       console.error("Failed to parse settings:", e);
@@ -77,19 +86,31 @@ export default function App() {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    localStorage.setItem("zephyra_settings", JSON.stringify(settings));
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem("zephyra_settings", JSON.stringify(settings));
+      }
+    } catch (e) {}
   }, [settings]);
 
   useEffect(() => {
-    localStorage.setItem("zephyra_conversations", JSON.stringify(conversations));
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        localStorage.setItem("zephyra_conversations", JSON.stringify(conversations));
+      }
+    } catch (e) {}
   }, [conversations]);
 
   useEffect(() => {
-    if (activeId) {
-      localStorage.setItem("zephyra_active_id", activeId);
-    } else {
-      localStorage.removeItem("zephyra_active_id");
-    }
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        if (activeId) {
+          localStorage.setItem("zephyra_active_id", activeId);
+        } else {
+          localStorage.removeItem("zephyra_active_id");
+        }
+      }
+    } catch (e) {}
   }, [activeId]);
 
   const scrollToBottom = () => {
