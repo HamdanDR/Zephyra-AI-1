@@ -1,7 +1,18 @@
 import { GoogleGenAI } from "@google/genai";
 
 export const getApiKey = (customKey?: string) => {
-  return customKey || process.env.GEMINI_API_KEY || "AIzaSyCNPZrryf3i0dQnDdNV0WJKC--63_A9P3M";
+  if (customKey) return customKey;
+  
+  // Fallback to environment variable or hardcoded key
+  // We use a safe check for process.env which Vite will replace
+  try {
+    const envKey = process.env.GEMINI_API_KEY;
+    if (envKey && envKey !== "undefined") return envKey;
+  } catch (e) {
+    // process.env might not be defined in some environments
+  }
+  
+  return "AIzaSyCNPZrryf3i0dQnDdNV0WJKC--63_A9P3M";
 };
 
 export const getAI = (customKey?: string) => {
