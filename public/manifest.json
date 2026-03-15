@@ -1,0 +1,21 @@
+{
+  "name": "Zephyra AI",
+  "short_name": "Zephyra",
+  "description": "Versatile and Intelligent Personal Assistant",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#09090b",
+  "theme_color": "#6366f1",
+  "icons": [
+    {
+      "src": "https://picsum.photos/seed/zephyra/192/192",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://picsum.photos/seed/zephyra/512/512",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
