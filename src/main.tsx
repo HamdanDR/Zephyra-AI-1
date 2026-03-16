@@ -3,10 +3,13 @@ import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
 
+console.log("Zephyra AI: Starting application...");
+
 // Global safety for process.env
 if (typeof window !== 'undefined') {
   (window as any).process = (window as any).process || {};
   (window as any).process.env = (window as any).process.env || {};
+  (window as any).process.env.NODE_ENV = (window as any).process.env.NODE_ENV || 'production';
 }
 
 class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
@@ -56,11 +59,23 @@ createRoot(document.getElementById('root')!).render(
   </StrictMode>,
 );
 
-// Register Service Worker for PWA
+// Register Service Worker for PWA - DISABLED FOR DEBUGGING
+/*
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').catch(err => {
       console.log('ServiceWorker registration failed: ', err);
     });
+  });
+}
+*/
+
+// Force unregister any existing service workers to clear bad caches
+if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    for (const registration of registrations) {
+      registration.unregister();
+      console.log("Zephyra AI: Service Worker unregistered");
+    }
   });
 }

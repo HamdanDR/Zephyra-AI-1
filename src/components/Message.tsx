@@ -129,10 +129,12 @@ export const Message: React.FC<MessageProps> = ({ message, onPreview }) => {
               p({ children }) {
                 return <div className="mb-4 last:mb-0">{children}</div>;
               },
-              code({ node, inline, className, children, ...props }: any) {
+              code({ node, className, children, ...props }: any) {
                 const match = /language-(\w+)/.exec(className || "");
-                const language = className?.replace("language-", "") || "";
-                return !inline ? (
+                const language = match ? match[1] : "";
+                const isInline = !match;
+                
+                return !isInline ? (
                   <CodeBlock
                     language={language}
                     value={String(children).replace(/\n$/, "")}

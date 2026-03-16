@@ -11,7 +11,17 @@
     <link rel="apple-touch-icon" href="https://picsum.photos/seed/zephyra/192/192" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div style="height: 100vh; display: flex; align-items: center; justify-content: center; background: #030303; color: #6366f1; font-family: sans-serif;">
+        <div style="text-align: center;">
+          <h1 style="font-size: 1.5rem; margin-bottom: 1rem;">Zephyra AI</h1>
+          <div style="width: 40px; height: 40px; border: 3px solid rgba(99, 102, 241, 0.2); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+          <style>
+            @keyframes spin { to { transform: rotate(360deg); } }
+          </style>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
