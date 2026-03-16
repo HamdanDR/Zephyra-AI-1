@@ -121,7 +121,7 @@ export default function App() {
     scrollToBottom();
   }, [messages]);
 
-  const handleSendMessage = async (content: string, files?: FileData[]) => {
+  const handleSendMessage = async (content: string, files?: FileData[], isEdit: boolean = false, editId?: string) => {
     let currentId = activeId;
     let currentConversations = [...conversations];
 
@@ -139,16 +139,28 @@ export default function App() {
       setActiveId(currentId);
     }
 
+    const activeConv = currentConversations.find(c => c.id === currentId);
+    if (activeConv && activeConv.messages.length >= 40) {
+      alert("Chat limit reached for this conversation (max 40 messages). Please start a new chat.");
+      return;
+    }
+
     const userMessage: MessageType = {
-      id: Date.now().toString(),
+      id: isEdit && editId ? editId : Date.now().toString(),
       role: "user",
       content,
       timestamp: Date.now(),
       attachments: files,
     };
 
-    const updatedConversations = currentConversations.map(c => {
+    let updatedConversations = currentConversations.map(c => {
       if (c.id === currentId) {
+        if (isEdit && editId) {
+          const msgIndex = c.messages.findIndex(m => m.id === editId);
+          if (msgIndex !== -1) {
+            return { ...c, messages: [...c.messages.slice(0, msgIndex), userMessage] };
+          }
+        }
         return { ...c, messages: [...c.messages, userMessage] };
       }
       return c;
@@ -178,10 +190,11 @@ export default function App() {
       - Logical Reasoning: Problem solving, data analysis, and critical thinking.
       - Technical Skills: Programming (Web, Mobile, Backend), UI/UX design, and system architecture.
       - Languages: Fluent in Indonesian and English, capable of translation and cultural context.
+      - Image Analysis: You can analyze images pasted or uploaded by the user.
 
       Guidelines:
       1. Be a "normal" and versatile assistant. Do not assume the user wants to talk about coding or UI/UX unless they bring it up.
-      2. Start conversations naturally. Respond warmly to greetings and ask how you can help with anything—from planning a trip to writing a script or solving a math problem.
+      2. Start conversations naturally. Respond warmly to greetings and ask how you can help with anything.
       3. You are in a continuous conversation thread. Use previous messages for context.
       4. When writing code (if requested), ALWAYS include the filename in the code block header (e.g., \`\`\`typescript:src/App.tsx\`).
       5. Provide clear, high-quality responses tailored to the user's specific request.
@@ -215,7 +228,8 @@ export default function App() {
       const currentConv = updatedConversations.find(c => c.id === currentId);
       const historyMessages = currentConv?.messages || [];
       
-      const history = historyMessages.slice(0, -1) // All messages except the one we just added
+      // Limit history to last 10 messages to save tokens and avoid quota issues
+      const history = historyMessages.slice(-11, -1) 
             .filter(m => m.content.trim() || (m.attachments && m.attachments.length > 0))
             .map(m => {
               const parts: any[] = [];
@@ -282,7 +296,7 @@ export default function App() {
       if (error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key not valid")) {
         errorText = "Invalid API Key. Please check your Gemini API Key in Settings.";
       } else if (error?.message?.includes("quota") || error?.message?.includes("429")) {
-        errorText = "API Quota exceeded. Please try again later or use your own API Key in Settings.";
+        errorText = "API Quota (Free Tier) exceeded. Google limits free accounts to a few messages per minute. Please wait 1-2 minutes and try again.";
       } else if (error?.message?.includes("safety") || error?.message?.includes("SAFETY")) {
         errorText = "The message was blocked by safety filters. Please try a different prompt.";
       }
@@ -301,6 +315,13 @@ export default function App() {
       }));
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleEditMessage = (id: string, newContent: string) => {
+    const msg = messages.find(m => m.id === id);
+    if (msg) {
+      handleSendMessage(newContent, msg.attachments, true, id);
     }
   };
 
@@ -389,12 +410,17 @@ export default function App() {
                     )}
                   >
                     <MessageSquare size={16} className={activeId === conv.id ? "text-indigo-400" : "text-zinc-500"} />
-                    <span className={cn(
-                      "text-sm truncate flex-1",
-                      activeId === conv.id ? "text-zinc-200" : "text-zinc-500 group-hover:text-zinc-300"
-                    )}>
-                      {conv.title}
-                    </span>
+                    <div className="flex-1 truncate">
+                      <span className={cn(
+                        "text-sm truncate block",
+                        activeId === conv.id ? "text-zinc-200" : "text-zinc-500 group-hover:text-zinc-300"
+                      )}>
+                        {conv.title}
+                      </span>
+                      <span className="text-[9px] text-zinc-600 block">
+                        {conv.messages.length}/40 messages
+                      </span>
+                    </div>
                     <button
                       onClick={(e) => deleteConversation(conv.id, e)}
                       className="opacity-0 group-hover:opacity-100 p-1 hover:bg-white/10 rounded text-zinc-500 hover:text-rose-400 transition-all"
@@ -443,6 +469,14 @@ export default function App() {
           </div>
           
           <div className="flex items-center gap-4">
+            {activeConversation && (
+              <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
+                <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider">
+                  {activeConversation.messages.length} / 40 Messages
+                </span>
+              </div>
+            )}
             <div className="w-8 h-8 rounded-full bg-zinc-800 border border-white/10 flex items-center justify-center text-xs font-bold">
               {settings.userName.slice(0, 2).toUpperCase()}
             </div>
@@ -502,6 +536,7 @@ export default function App() {
                   key={msg.id} 
                   message={msg} 
                   onPreview={(code, lang) => setPreviewData({ code, language: lang })}
+                  onEdit={handleEditMessage}
                 />
               ))}
               {isLoading && (

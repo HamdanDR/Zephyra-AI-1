@@ -62,6 +62,37 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, disabled, accentCo
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handlePaste = async (e: React.ClipboardEvent) => {
+    const items = e.clipboardData.items;
+    const newFiles: FileData[] = [];
+
+    for (let i = 0; i < items.length; i++) {
+      if (items[i].type.indexOf("image") !== -1) {
+        const file = items[i].getAsFile();
+        if (!file) continue;
+
+        const reader = new FileReader();
+        const fileData = await new Promise<FileData>((resolve) => {
+          reader.onload = (event) => {
+            const base64 = event.target?.result as string;
+            const data = base64.split(",")[1];
+            resolve({
+              mimeType: file.type,
+              data,
+              name: `pasted-image-${Date.now()}.png`
+            });
+          };
+          reader.readAsDataURL(file);
+        });
+        newFiles.push(fileData);
+      }
+    }
+
+    if (newFiles.length > 0) {
+      setFiles(prev => [...prev, ...newFiles]);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -140,6 +171,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ onSend, disabled, accentCo
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
+          onPaste={handlePaste}
           placeholder="Ask Zephyra anything..."
           className="flex-1 bg-transparent border-none focus:ring-0 text-zinc-100 placeholder:text-zinc-600 py-3 resize-none max-h-[200px] custom-scrollbar"
           disabled={disabled}
