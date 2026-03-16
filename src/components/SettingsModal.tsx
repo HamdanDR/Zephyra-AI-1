@@ -8,7 +8,7 @@ export interface AppSettings {
   personality: string;
   accentColor: string;
   enableMemory: boolean;
-  customApiKey?: string;
+  customApiKeys?: string;
 }
 
 interface SettingsModalProps {
@@ -95,20 +95,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
 
-              {/* API Key */}
+              {/* API Keys */}
               <div className="space-y-4">
                 <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest flex items-center gap-2">
-                  <Key size={14} /> Gemini API Key (Optional)
+                  <Key size={14} /> Gemini API Keys (Optional)
                 </label>
-                <input
-                  type="password"
-                  value={tempSettings.customApiKey || ""}
-                  onChange={(e) => setTempSettings({ ...tempSettings, customApiKey: e.target.value })}
-                  placeholder="Enter your API Key if the default fails"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors"
+                <textarea
+                  value={tempSettings.customApiKeys || ""}
+                  onChange={(e) => setTempSettings({ ...tempSettings, customApiKeys: e.target.value })}
+                  placeholder="Enter your API Keys (one per line) for automatic rotation"
+                  rows={4}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 focus:outline-none focus:border-indigo-500 transition-colors resize-none font-mono text-xs"
                 />
                 <p className="text-[10px] text-zinc-500 italic">
-                  Leave empty to use the system default key.
+                  If one key hits its limit, Zephyra will automatically switch to the next one.
                 </p>
               </div>
 

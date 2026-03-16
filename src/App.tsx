@@ -33,6 +33,14 @@ interface Conversation {
   timestamp: number;
 }
 
+const SYSTEM_API_KEYS = [
+  "AIzaSyCcPf7Fnq9YZ8YJKI9Glmw8-kvMwvo-d9Q",
+  "AIzaSyAAjLdriAJFDph3nWcKRMfNDAmIjFM_A5o",
+  "AIzaSyB-wvPqvADHs5bHh_4xSPhUY8CPJMF3MfU",
+  "AIzaSyCmdbOLfs1R3_Pe1cxwTDHsT6Rr5Kh1t3I",
+  "AIzaSyDzlKuzi64__W-VUTDpFGV1ge6jmAQekfs"
+];
+
 const DEFAULT_SETTINGS: AppSettings = {
   userName: "User",
   personality: "professional",
@@ -140,8 +148,8 @@ export default function App() {
     }
 
     const activeConv = currentConversations.find(c => c.id === currentId);
-    if (activeConv && activeConv.messages.length >= 40) {
-      alert("Chat limit reached for this conversation (max 40 messages). Please start a new chat.");
+    if (activeConv && activeConv.messages.length >= 250) {
+      alert("Chat limit reached for this conversation (max 250 messages). Please start a new chat.");
       return;
     }
 
@@ -228,8 +236,8 @@ export default function App() {
       const currentConv = updatedConversations.find(c => c.id === currentId);
       const historyMessages = currentConv?.messages || [];
       
-      // Limit history to last 10 messages to save tokens and avoid quota issues
-      const history = historyMessages.slice(-11, -1) 
+      // Limit history to last 20 messages to save tokens and avoid quota issues
+      const history = historyMessages.slice(-21, -1) 
             .filter(m => m.content.trim() || (m.attachments && m.attachments.length > 0))
             .map(m => {
               const parts: any[] = [];
@@ -264,21 +272,49 @@ export default function App() {
       // Combine history and current message
       const contents = [...history, { role: "user", parts: currentParts }];
 
-      const aiInstance = getAI(settings.customApiKey);
-      const response = await aiInstance.models.generateContent({
-        model: CHAT_MODEL,
-        contents: contents,
-        config: {
-          systemInstruction: systemInstruction,
-          temperature: 0.7,
-          topP: 0.95,
-        },
-      });
+      // --- API KEY ROTATION LOGIC ---
+      const userKeys = settings.customApiKeys?.split("\n").map(k => k.trim()).filter(k => k.length > 5) || [];
+      const pool = userKeys.length > 0 ? userKeys : SYSTEM_API_KEYS;
+      
+      let lastError = null;
+      let successResponse = null;
+
+      for (let i = 0; i < pool.length; i++) {
+        const currentKey = pool[i];
+        try {
+          const aiInstance = getAI(currentKey);
+          const response = await aiInstance.models.generateContent({
+            model: CHAT_MODEL,
+            contents: contents,
+            config: {
+              systemInstruction: systemInstruction,
+              temperature: 0.7,
+              topP: 0.95,
+            },
+          });
+          successResponse = response;
+          break; // Success!
+        } catch (err: any) {
+          console.error(`Key ${i+1} failed:`, err.message);
+          lastError = err;
+          // If it's a quota error or 429, try next key
+          if (err?.message?.includes("quota") || err?.message?.includes("429") || err?.message?.includes("limit")) {
+            continue;
+          } else {
+            // For other errors, try next anyway for robustness
+            continue;
+          }
+        }
+      }
+
+      if (!successResponse) {
+        throw lastError || new Error("All API keys failed to process the request.");
+      }
       
       const aiMessage: MessageType = {
         id: (Date.now() + 1).toString(),
         role: "model",
-        content: response.text || "I'm sorry, I couldn't process that.",
+        content: successResponse.text || "I'm sorry, I couldn't process that.",
         timestamp: Date.now(),
       };
 
@@ -294,9 +330,9 @@ export default function App() {
       let errorText = "I encountered an error while processing your request. Please try again.";
       
       if (error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key not valid")) {
-        errorText = "Invalid API Key. Please check your Gemini API Key in Settings.";
+        errorText = "Invalid API Key. Please check your Gemini API Keys in Settings.";
       } else if (error?.message?.includes("quota") || error?.message?.includes("429")) {
-        errorText = "API Quota (Free Tier) exceeded. Google limits free accounts to a few messages per minute. Please wait 1-2 minutes and try again.";
+        errorText = "All API Keys have exceeded their quota. Please wait a minute and try again.";
       } else if (error?.message?.includes("safety") || error?.message?.includes("SAFETY")) {
         errorText = "The message was blocked by safety filters. Please try a different prompt.";
       }
@@ -418,7 +454,7 @@ export default function App() {
                         {conv.title}
                       </span>
                       <span className="text-[9px] text-zinc-600 block">
-                        {conv.messages.length}/40 messages
+                        {conv.messages.length}/250 messages
                       </span>
                     </div>
                     <button
@@ -473,7 +509,7 @@ export default function App() {
               <div className="hidden md:flex items-center gap-2 px-3 py-1 bg-white/5 rounded-full border border-white/5">
                 <div className="w-1.5 h-1.5 rounded-full bg-indigo-500 animate-pulse" />
                 <span className="text-[10px] text-zinc-400 font-medium uppercase tracking-wider">
-                  {activeConversation.messages.length} / 40 Messages
+                  {activeConversation.messages.length} / 250 Messages
                 </span>
               </div>
             )}
