@@ -1,6 +1,6 @@
 import React from "react";
 import { X, User, Brain, Palette, Save, History, Settings, Key } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "../lib/utils";
 
 export interface AppSettings {

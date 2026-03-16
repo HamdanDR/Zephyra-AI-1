@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { cn } from "../lib/utils";
 import { Message as MessageType } from "../lib/gemini";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { User, Copy, Check, FileText, Play, Terminal } from "lucide-react";
 import { ZephyraLogo } from "./ZephyraLogo";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";

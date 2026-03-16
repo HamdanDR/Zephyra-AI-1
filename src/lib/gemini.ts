@@ -1,17 +1,19 @@
 import { GoogleGenAI } from "@google/genai";
 
 export const getApiKey = (customKey?: string) => {
-  if (customKey) return customKey;
+  if (customKey && customKey.length > 5) return customKey;
   
   try {
     // Check various common environment variable locations
     const envKey = 
-      (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
       (import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
+      (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
       (window as any).process?.env?.GEMINI_API_KEY;
 
     if (envKey && envKey !== "undefined" && envKey.length > 5) return envKey;
-  } catch (e) {}
+  } catch (e) {
+    console.warn("Failed to access environment variables:", e);
+  }
   
   return "";
 };

@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useRef, useEffect } from "react";
-import { motion, AnimatePresence } from "motion/react";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Plus, 
   MessageSquare, 
@@ -33,13 +33,29 @@ interface Conversation {
   timestamp: number;
 }
 
-const SYSTEM_API_KEYS = [
-  "AIzaSyCcPf7Fnq9YZ8YJKI9Glmw8-kvMwvo-d9Q",
-  "AIzaSyAAjLdriAJFDph3nWcKRMfNDAmIjFM_A5o",
-  "AIzaSyB-wvPqvADHs5bHh_4xSPhUY8CPJMF3MfU",
-  "AIzaSyCmdbOLfs1R3_Pe1cxwTDHsT6Rr5Kh1t3I",
-  "AIzaSyDzlKuzi64__W-VUTDpFGV1ge6jmAQekfs"
-];
+const getSystemKeys = (): string[] => {
+  const keys = [
+    import.meta.env.VITE_GEMINI_API_KEY_1,
+    import.meta.env.VITE_GEMINI_API_KEY_2,
+    import.meta.env.VITE_GEMINI_API_KEY_3,
+    import.meta.env.VITE_GEMINI_API_KEY_4,
+    import.meta.env.VITE_GEMINI_API_KEY_5,
+    import.meta.env.VITE_GEMINI_API_KEY_6,
+  ].filter(k => k && k.length > 5) as string[];
+
+  if (keys.length > 0) return keys;
+
+  // Fallback to hardcoded keys if no environment variables are set
+  return [
+    "AIzaSyCcPf7Fnq9YZ8YJKI9Glmw8-kvMwvo-d9Q",
+    "AIzaSyAAjLdriAJFDph3nWcKRMfNDAmIjFM_A5o",
+    "AIzaSyB-wvPqvADHs5bHh_4xSPhUY8CPJMF3MfU",
+    "AIzaSyCmdbOLfs1R3_Pe1cxwTDHsT6Rr5Kh1t3I",
+    "AIzaSyDzlKuzi64__W-VUTDpFGV1ge6jmAQekfs"
+  ];
+};
+
+const SYSTEM_API_KEYS = getSystemKeys();
 
 const DEFAULT_SETTINGS: AppSettings = {
   userName: "User",
@@ -49,6 +65,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export default function App() {
+  console.log("Zephyra AI: App component rendering...");
   const [conversations, setConversations] = useState<Conversation[]>(() => {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
