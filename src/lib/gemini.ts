@@ -3,16 +3,17 @@ import { GoogleGenAI } from "@google/genai";
 export const getApiKey = (customKey?: string) => {
   if (customKey) return customKey;
   
-  // Fallback to environment variable or hardcoded key
-  // We use a safe check for process.env which Vite will replace
   try {
-    const envKey = process.env.GEMINI_API_KEY;
-    if (envKey && envKey !== "undefined") return envKey;
-  } catch (e) {
-    // process.env might not be defined in some environments
-  }
+    // Check various common environment variable locations
+    const envKey = 
+      (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY) || 
+      (import.meta.env && import.meta.env.VITE_GEMINI_API_KEY) ||
+      (window as any).process?.env?.GEMINI_API_KEY;
+
+    if (envKey && envKey !== "undefined" && envKey.length > 5) return envKey;
+  } catch (e) {}
   
-  return "AIzaSyCNPZrryf3i0dQnDdNV0WJKC--63_A9P3M";
+  return "";
 };
 
 export const getAI = (customKey?: string) => {
