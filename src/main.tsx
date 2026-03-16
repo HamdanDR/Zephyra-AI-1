@@ -7,7 +7,7 @@ console.log("Zephyra AI: Starting application...");
 
 // Global safety for process.env
 if (typeof window !== 'undefined') {
-  (window as any).process = (window as any).process || {};
+  (window as any).process = (window as any).process || { env: {} };
   (window as any).process.env = (window as any).process.env || {};
   (window as any).process.env.NODE_ENV = (window as any).process.env.NODE_ENV || 'production';
 }

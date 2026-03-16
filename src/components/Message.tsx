@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { User, Copy, Check, FileText, Play, Terminal } from "lucide-react";
 import { ZephyraLogo } from "./ZephyraLogo";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import vscDarkPlus from "react-syntax-highlighter/dist/esm/styles/prism/vsc-dark-plus";
 import { Edit2, Save, X as CloseIcon } from "lucide-react";
 
 interface MessageProps {
