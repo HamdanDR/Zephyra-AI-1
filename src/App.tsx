@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { ZephyraLogo } from "./components/ZephyraLogo";
 import { getAI, CHAT_MODEL, Message as MessageType } from "./lib/gemini";
+import { ThinkingLevel } from "@google/genai";
 import { Message } from "./components/Message";
 import { ChatInput, FileData } from "./components/ChatInput";
 import { SettingsModal, AppSettings, personalities } from "./components/SettingsModal";
@@ -45,14 +46,10 @@ const getSystemKeys = (): string[] => {
 
   if (keys.length > 0) return keys;
 
-  // Fallback to hardcoded keys if no environment variables are set
-  return [
-    "AIzaSyCcPf7Fnq9YZ8YJKI9Glmw8-kvMwvo-d9Q",
-    "AIzaSyAAjLdriAJFDph3nWcKRMfNDAmIjFM_A5o",
-    "AIzaSyB-wvPqvADHs5bHh_4xSPhUY8CPJMF3MfU",
-    "AIzaSyCmdbOLfs1R3_Pe1cxwTDHsT6Rr5Kh1t3I",
-    "AIzaSyDzlKuzi64__W-VUTDpFGV1ge6jmAQekfs"
-  ];
+  // Fallback to empty if no environment variables are set
+  // To prevent unauthorized usage, we don't hardcode keys here anymore.
+  // Users should set VITE_GEMINI_API_KEY_1-6 in their environment.
+  return [];
 };
 
 const SYSTEM_API_KEYS = getSystemKeys();
@@ -63,6 +60,9 @@ const DEFAULT_SETTINGS: AppSettings = {
   accentColor: "indigo",
   enableMemory: true,
 };
+
+// Track keys that are currently on cooldown
+const keyCooldowns = new Map<string, number>();
 
 export default function App() {
   console.log("Zephyra AI: App component rendering...");
@@ -253,75 +253,119 @@ export default function App() {
       const currentConv = updatedConversations.find(c => c.id === currentId);
       const historyMessages = currentConv?.messages || [];
       
-      // Limit history to last 20 messages to save tokens and avoid quota issues
-      const history = historyMessages.slice(-21, -1) 
-            .filter(m => m.content.trim() || (m.attachments && m.attachments.length > 0))
-            .map(m => {
-              const parts: any[] = [];
-              if (m.content.trim()) {
-                parts.push({ text: m.content.trim() });
-              } else if (m.attachments && m.attachments.length > 0) {
-                parts.push({ text: "[Sent a file]" });
+      // Limit history to last 20 messages and ensure alternating roles
+      const rawHistory = historyMessages.slice(-21, -1) 
+            .filter(m => m.content.trim() || (m.attachments && m.attachments.length > 0));
+            
+      const history: any[] = [];
+      rawHistory.forEach(m => {
+        const role = m.role === "user" ? "user" : "model";
+        
+        const parts: any[] = [];
+        if (m.content.trim()) {
+          parts.push({ text: m.content.trim() });
+        } else if (m.attachments && m.attachments.length > 0) {
+          parts.push({ text: "[Sent a file]" });
+        }
+        
+        if (m.attachments && m.attachments.length > 0) {
+          m.attachments.forEach(a => {
+            parts.push({
+              inlineData: {
+                mimeType: a.mimeType,
+                data: a.data
               }
-              
-              if (m.attachments && m.attachments.length > 0) {
-                m.attachments.forEach(a => {
-                  parts.push({
-                    inlineData: {
-                      mimeType: a.mimeType,
-                      data: a.data
-                    }
-                  });
-                });
-              }
-              
-              // Ensure every message has at least one part
-              if (parts.length === 0) {
-                parts.push({ text: "..." });
-              }
-              
-              return {
-                role: m.role === "user" ? "user" : "model",
-                parts
-              };
             });
+          });
+        }
+        
+        if (parts.length === 0) parts.push({ text: "..." });
+
+        if (history.length > 0 && history[history.length - 1].role === role) {
+          // Merge consecutive messages with the same role
+          history[history.length - 1].parts.push(...parts);
+        } else {
+          history.push({ role, parts });
+        }
+      });
+
+      // Ensure history ends with a model message if it's not empty
+      // Gemini requires User -> Model -> User ...
+      // If history ends with User, and we add the current User message, it will fail.
+      if (history.length > 0 && history[history.length - 1].role === "user") {
+        // We can either merge the last history message into the current one, 
+        // or just remove it from history. Merging is better.
+        const lastUserParts = history.pop().parts;
+        currentParts.unshift(...lastUserParts);
+      }
 
       // Combine history and current message
       const contents = [...history, { role: "user", parts: currentParts }];
 
       // --- API KEY ROTATION LOGIC ---
       const userKeys = settings.customApiKeys?.split("\n").map(k => k.trim()).filter(k => k.length > 5) || [];
-      const pool = userKeys.length > 0 ? userKeys : SYSTEM_API_KEYS;
+      const basePool = userKeys.length > 0 ? userKeys : SYSTEM_API_KEYS;
       
-      let lastError = null;
+      // Filter out keys on cooldown
+      const pool = basePool.filter(key => {
+        const cooldownUntil = keyCooldowns.get(key) || 0;
+        return Date.now() > cooldownUntil;
+      });
+
+      // If all keys are on cooldown, clear them to try again
+      if (pool.length === 0 && basePool.length > 0) {
+        keyCooldowns.clear();
+      }
+
+      const activePool = pool.length > 0 ? pool : basePool;
+      
+      let lastError: any = null;
       let successResponse = null;
 
-      for (let i = 0; i < pool.length; i++) {
-        const currentKey = pool[i];
-        try {
-          const aiInstance = getAI(currentKey);
-          const response = await aiInstance.models.generateContent({
-            model: CHAT_MODEL,
-            contents: contents,
-            config: {
-              systemInstruction: systemInstruction,
-              temperature: 0.7,
-              topP: 0.95,
-            },
-          });
-          successResponse = response;
-          break; // Success!
-        } catch (err: any) {
-          console.error(`Key ${i+1} failed:`, err.message);
-          lastError = err;
-          // If it's a quota error or 429, try next key
-          if (err?.message?.includes("quota") || err?.message?.includes("429") || err?.message?.includes("limit")) {
-            continue;
-          } else {
-            // For other errors, try next anyway for robustness
-            continue;
+      // Try different models if one fails
+      const modelsToTry = [
+        CHAT_MODEL, 
+        "gemini-3.1-flash-lite-preview", 
+        "gemini-2.0-flash", 
+        "gemini-2.0-flash-lite-preview"
+      ];
+
+      for (let i = 0; i < activePool.length; i++) {
+        const currentKey = activePool[i];
+        if (!currentKey) continue;
+
+        for (const modelName of modelsToTry) {
+          try {
+            const aiInstance = getAI(currentKey);
+            const response = await aiInstance.models.generateContent({
+              model: modelName,
+              contents: contents,
+              config: {
+                systemInstruction: systemInstruction,
+                temperature: 0.7,
+                topP: 0.95,
+                topK: 40,
+                thinkingConfig: {
+                  thinkingLevel: ThinkingLevel.LOW
+                }
+              },
+            });
+            successResponse = response;
+            break; 
+          } catch (err: any) {
+            lastError = err;
+            
+            // If it's a quota error or 429, put key on cooldown for 60 seconds
+            if (err?.message?.includes("quota") || err?.message?.includes("429") || err?.message?.includes("limit")) {
+              keyCooldowns.set(currentKey, Date.now() + 60000);
+              break; // Try next key
+            } else if (err?.message?.includes("safety") || err?.message?.includes("blocked")) {
+              throw err; 
+            }
+            continue; // Try next model
           }
         }
+        if (successResponse) break;
       }
 
       if (!successResponse) {
@@ -349,9 +393,12 @@ export default function App() {
       if (error?.message?.includes("API_KEY_INVALID") || error?.message?.includes("API key not valid")) {
         errorText = "Invalid API Key. Please check your Gemini API Keys in Settings.";
       } else if (error?.message?.includes("quota") || error?.message?.includes("429")) {
-        errorText = "All API Keys have exceeded their quota. Please wait a minute and try again.";
-      } else if (error?.message?.includes("safety") || error?.message?.includes("SAFETY")) {
+        errorText = "All API Keys have exceeded their quota. Please wait a minute and try again or add your own API key in Settings.";
+      } else if (error?.message?.includes("safety") || error?.message?.includes("SAFETY") || error?.message?.includes("blocked")) {
         errorText = "The message was blocked by safety filters. Please try a different prompt.";
+      } else if (error?.message) {
+        // Show the actual error message for better debugging
+        errorText = `Error: ${error.message}. Please try again.`;
       }
 
       const errorMessage: MessageType = {
